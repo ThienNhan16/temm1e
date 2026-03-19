@@ -17,6 +17,12 @@ tls = false
 # api_key = "your-api-key-here"
 # model = "claude-sonnet-4-6"
 
+# OpenRouter example (290+ models via proxy):
+# [provider]
+# name = "openrouter"
+# api_key = "sk-or-v1-..."
+# model = "anthropic/claude-sonnet-4-6"
+
 [memory]
 backend = "sqlite"
 

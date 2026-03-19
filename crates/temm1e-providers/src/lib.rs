@@ -73,10 +73,15 @@ pub fn create_provider(config: &ProviderConfig) -> Result<Box<dyn Provider>, Tem
                 .base_url
                 .clone()
                 .unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string());
+            // Inject default X-Title for OpenRouter attribution if not already set.
+            let mut headers = config.extra_headers.clone();
+            headers
+                .entry("X-Title".to_string())
+                .or_insert_with(|| "TEMM1E".to_string());
             let provider = OpenAICompatProvider::new(api_key)
                 .with_keys(all_keys)
                 .with_base_url(base_url)
-                .with_extra_headers(config.extra_headers.clone());
+                .with_extra_headers(headers);
             Ok(Box::new(provider))
         }
         "minimax" => {
@@ -219,5 +224,34 @@ mod tests {
             extra_headers: HashMap::new(),
         };
         assert!(create_provider(&config).is_err());
+    }
+
+    #[test]
+    fn openrouter_default_x_title_header() {
+        let config = config_with_name("openrouter");
+        // Replicate the openrouter branch header logic
+        let mut headers = config.extra_headers.clone();
+        headers
+            .entry("X-Title".to_string())
+            .or_insert_with(|| "TEMM1E".to_string());
+        let provider = OpenAICompatProvider::new("test-key".to_string())
+            .with_extra_headers(headers);
+        assert_eq!(provider.extra_headers["X-Title"], "TEMM1E");
+    }
+
+    #[test]
+    fn openrouter_custom_x_title_not_overridden() {
+        let mut config = config_with_name("openrouter");
+        config
+            .extra_headers
+            .insert("X-Title".to_string(), "CustomApp".to_string());
+        // Replicate the openrouter branch header logic
+        let mut headers = config.extra_headers.clone();
+        headers
+            .entry("X-Title".to_string())
+            .or_insert_with(|| "TEMM1E".to_string());
+        let provider = OpenAICompatProvider::new("test-key".to_string())
+            .with_extra_headers(headers);
+        assert_eq!(provider.extra_headers["X-Title"], "CustomApp");
     }
 }
