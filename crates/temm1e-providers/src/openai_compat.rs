@@ -23,7 +23,7 @@ pub struct OpenAICompatProvider {
     keys: Vec<String>,
     key_index: AtomicUsize,
     base_url: String,
-    pub(crate) extra_headers: HashMap<String, String>,
+    extra_headers: HashMap<String, String>,
 }
 
 impl OpenAICompatProvider {

@@ -19,9 +19,21 @@ pub use anthropic::AnthropicProvider;
 pub use gemini::GeminiProvider;
 pub use openai_compat::OpenAICompatProvider;
 
+use std::collections::HashMap;
 use temm1e_core::types::config::ProviderConfig;
 use temm1e_core::types::error::Temm1eError;
 use temm1e_core::Provider;
+
+/// Merge default OpenRouter attribution headers into the user-supplied map.
+///
+/// Injects `X-Title: TEMM1E` unless the caller already set it.
+fn openrouter_headers(extra: &HashMap<String, String>) -> HashMap<String, String> {
+    let mut headers = extra.clone();
+    headers
+        .entry("X-Title".to_string())
+        .or_insert_with(|| "TEMM1E".to_string());
+    headers
+}
 
 /// Create a provider from configuration.
 ///
@@ -73,15 +85,10 @@ pub fn create_provider(config: &ProviderConfig) -> Result<Box<dyn Provider>, Tem
                 .base_url
                 .clone()
                 .unwrap_or_else(|| "https://openrouter.ai/api/v1".to_string());
-            // Inject default X-Title for OpenRouter attribution if not already set.
-            let mut headers = config.extra_headers.clone();
-            headers
-                .entry("X-Title".to_string())
-                .or_insert_with(|| "TEMM1E".to_string());
             let provider = OpenAICompatProvider::new(api_key)
                 .with_keys(all_keys)
                 .with_base_url(base_url)
-                .with_extra_headers(headers);
+                .with_extra_headers(openrouter_headers(&config.extra_headers));
             Ok(Box::new(provider))
         }
         "minimax" => {
@@ -229,14 +236,11 @@ mod tests {
     #[test]
     fn openrouter_default_x_title_header() {
         let config = config_with_name("openrouter");
-        // Replicate the openrouter branch header logic
-        let mut headers = config.extra_headers.clone();
-        headers
-            .entry("X-Title".to_string())
-            .or_insert_with(|| "TEMM1E".to_string());
-        let provider = OpenAICompatProvider::new("test-key".to_string())
-            .with_extra_headers(headers);
-        assert_eq!(provider.extra_headers["X-Title"], "TEMM1E");
+        let headers = openrouter_headers(&config.extra_headers);
+        assert_eq!(headers["X-Title"], "TEMM1E");
+        // Verify create_provider also succeeds with the injected header.
+        let provider = create_provider(&config).unwrap();
+        assert_eq!(provider.name(), "openai-compatible");
     }
 
     #[test]
@@ -245,13 +249,10 @@ mod tests {
         config
             .extra_headers
             .insert("X-Title".to_string(), "CustomApp".to_string());
-        // Replicate the openrouter branch header logic
-        let mut headers = config.extra_headers.clone();
-        headers
-            .entry("X-Title".to_string())
-            .or_insert_with(|| "TEMM1E".to_string());
-        let provider = OpenAICompatProvider::new("test-key".to_string())
-            .with_extra_headers(headers);
-        assert_eq!(provider.extra_headers["X-Title"], "CustomApp");
+        let headers = openrouter_headers(&config.extra_headers);
+        assert_eq!(headers["X-Title"], "CustomApp");
+        // Verify create_provider also succeeds with the custom header.
+        let provider = create_provider(&config).unwrap();
+        assert_eq!(provider.name(), "openai-compatible");
     }
 }
